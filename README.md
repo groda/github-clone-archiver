@@ -76,7 +76,10 @@ jobs:
     # This is required for the runner to operate within the Observed repo
     permissions:
       contents: read
-    uses: myspace/workflows-repo/.github/workflows/metrics.yml@main
+
+    # You can point this to your own forked workflows repo if preferred
+    uses: groda/github-clone-archiver/.github/workflows/metrics.yml@v1
+    
     with:
       metrics-repo: myspace/observer-repo
     secrets:
