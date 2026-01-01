@@ -1,0 +1,13 @@
+name: 'GitHub Clone Archiver'
+description: 'Automatically archive and persist your GitHub traffic and clone metrics beyond the 14-day limit.'
+author: 'YOUR-USERNAME'
+branding:
+  icon: 'database' 
+  color: 'green'
+
+# This section is required for Marketplace listing
+runs:
+  using: 'composite'
+  steps:
+    - run: echo "This is a reusable workflow. Please refer to the README for caller setup."
+      shell: bash
