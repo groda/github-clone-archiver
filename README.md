@@ -45,7 +45,7 @@ Create a token named **"Metrics Workflow"** in your [Developer Settings](https:/
  * `Metadata`: Read-only.
  * `Contents`: **Read & Write** (Required to push `.csv` updates).
 
-
+![Create a Personal Access Token](PAT.png)
 
 ### 2. Repository Secrets
 
@@ -57,6 +57,7 @@ In **each** Observed Repo (Settings > Secrets and variables > Actions), add the 
 > [!NOTE]
 > While it may seem like the Observer repo doesn't need a "separate" PAT, it is actually covered by the **"Metrics Workflow" PAT** you created. Because that single token has "Write" access to the Observer repo, it can push the data once the workflow finishes gathering it.
 
+![Personal Access Token permissions](PAT_permissions.png)
 ---
 
 ## 🚀 Usage
@@ -81,7 +82,7 @@ jobs:
     uses: groda/github-clone-archiver/.github/workflows/metrics.yml@v1
     
     with:
-      metrics-repo: myspace/observer-repo
+      metrics-repo: YOUR-USERNAME/observer-repo
     secrets:
       METRICS_PAT: ${{ secrets.METRICS_PAT }}
 
@@ -91,18 +92,39 @@ This is your caller workflow for the observed repository.
 
 ---
 
-## 📈 Data Structure
+## 📊 Data Architecture
 
-The workflow generates/updates a CSV file named after the repository (e.g., `myspace_observed-repo.csv`).
+The workflow automates the collection of traffic data into a persistent CSV format. Unlike the default GitHub dashboard, this data never expires.
 
-### Sorting Logic:
+### Storage Logic
 
-The CSV is automatically deduplicated and sorted in **reverse chronological order** (newest first).
+The system generates or updates a CSV file named using the pattern `[YOUR-USERNAME]_[repo].csv` (e.g., `groda_my-project.csv`). This file is automatically committed to your **Observer Repository**.
 
-* **Daily Stats**: Recorded as `YYYY-MM-DD`.
-* **14-day Totals**: Recorded as `YYYY-MM-DD~ 14-day total`.
+### Configuration
 
-The use of the tilde (`~`) ensures that in a descending sort, the **Total** summary for a specific day appears immediately **above** the individual daily stats for that same day.
+To set up your storage destination, update the `with` block in your workflow file:
+
+```yaml
+with:
+  # The central repository where CSV files are stored
+  metrics-repo: YOUR-USERNAME/observer-repo
+
+```
+
+### File Structure
+
+Each CSV is optimized for easy sorting and long-term analysis:
+
+| Column | Description | Example |
+| --- | --- | --- |
+| **Date** | The date the data was captured (YYYY-MM-DD) | `2024-05-20` |
+| **Clones** | Total number of times the repo was cloned that day | `42` |
+| **Unique** | Number of unique GitHub accounts that cloned | `12` |
+
+> **Note:** The workflow uses a "smart merge" logic. It checks the existing CSV in your Observer repo first, appends only the newest data, and ensures no duplicate dates are recorded.
+
+In addition to daily stats **14-day Totals** records are recorded as `YYYY-MM-DD~ 14-day total`. The use of the tilde (`~`) ensures that in a descending sort, the **Total** summary for a specific day appears immediately **above** the individual daily stats for that same day.
+
 
 ---
 
@@ -158,9 +180,10 @@ If you choose the **High Security** route, update your caller workflow in the Ob
 ```yaml
 jobs:
   update-metrics:
-    uses: myspace/workflows-repo/.github/workflows/metrics.yml@main
+    # You can point this to your own forked workflows repo if preferred
+    uses: groda/github-clone-archiver/.github/workflows/metrics.yml@v1
     with:
-      metrics-repo: myspace/observer-repo
+      metrics-repo: YOUR-USERNAME/observer-repo
     secrets:
       # We pass the Writer token to the reusable workflow
       # so it can push to the central database repo
