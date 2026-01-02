@@ -22,9 +22,7 @@ GitHub only keeps traffic data (clones and visitors) for **14 days**. This workf
 4. It deduplicates the file and sorts it so the most recent stats are always at the top.
 
 > [!IMPORTANT]
-> **Access Requirement:** You must be the owner or a collaborator with appropriate permissions on the **Observed Repos**. This workflow requires an authorized Personal Access Token (PAT) to read traffic data that is otherwise hidden from the public.
-
-
+> **Access Requirement:** Access Requirement: You must have owner or collaborator permissions on **both** the Observed and Observer repositories. This workflow uses a Personal Access Token (PAT) to **read** private traffic data from the source and **write** the archived logs to this repository.
 ---
 
 ## 🔐 Security & Permissions
@@ -62,7 +60,11 @@ In **each** Observed Repo (Settings > Secrets and variables > Actions), add the 
 
 ## 🚀 Usage
 
-To implement this in an **Observed Repo**, create a file at `.github/workflows/metrics.yml`:
+> [!IMPORTANT]
+> The auto-generated "Installation" snippet on the Marketplace sidebar is incomplete. 
+> To archive data, you **must** include the permissions and token blocks below.
+
+Create a file `.github/workflows/metrics.yml` in an **Observed Repo**:
 
 ```yaml
 name: Collect Metrics
@@ -79,7 +81,7 @@ jobs:
       contents: read
 
     # You can point this to your own forked workflows repo if preferred
-    uses: groda/github-clone-archiver/.github/workflows/metrics.yml@v1
+    uses: groda/github-clone-archiver/.github/workflows/metrics.yml@v1.1.1
     
     with:
       metrics-repo: YOUR-USERNAME/observer-repo
@@ -124,7 +126,6 @@ Each CSV is optimized for easy sorting and long-term analysis:
 > **Note:** The workflow uses a "smart merge" logic. It checks the existing CSV in your Observer repo first, appends only the newest data, and ensures no duplicate dates are recorded.
 
 In addition to daily stats **14-day Totals** records are recorded as `YYYY-MM-DD~ 14-day total`. The use of the tilde (`~`) ensures that in a descending sort, the **Total** summary for a specific day appears immediately **above** the individual daily stats for that same day.
-
 
 ---
 

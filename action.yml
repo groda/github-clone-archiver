@@ -4,7 +4,13 @@ author: 'YOUR-USERNAME'
 branding:
   icon: 'database' 
   color: 'green'
-
+  
+# This displays the required PAT in the Marketplace UI
+inputs:
+  token:
+    description: 'Personal Access Token (PAT) with "Contents: Write" permissions'
+    required: true
+    
 # This section is required for Marketplace listing
 runs:
   using: 'composite'
