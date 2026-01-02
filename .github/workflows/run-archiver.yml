@@ -1,0 +1,17 @@
+name: Record clone metrics
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 6 * * *"   # once per day, quiet time
+
+permissions:
+  contents: read
+
+jobs:
+  metrics:
+    uses: groda/github-clone-archiver/.github/workflows/metrics.yml@v1.1.1
+    with:
+      metrics-repo: groda/observatory
+    secrets:
+      METRICS_PAT: ${{ secrets.METRICS_PAT }}
