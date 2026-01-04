@@ -1,10 +1,10 @@
-name: Record clone metrics
+name: Record clone and view metrics
 
 on:
   workflow_call:
     inputs:
       observed-repo:
-        description: "Repository to fetch clone metrics from (OWNER/REPO)"
+        description: "Repository to fetch clone and view metrics from (OWNER/REPO)"
         required: false
         default: ${{ github.repository }}
         type: string
@@ -26,49 +26,26 @@ jobs:
       - name: Install jq
         run: sudo apt-get update && sudo apt-get install -y jq
 
-      - name: Fetch clone stats
+      - name: Fetch Traffic Stats (Clones and Views)
         env:
           GH_TOKEN: ${{ secrets.METRICS_PAT }}
           OBSERVED_REPO: ${{ inputs.observed-repo }}
         run: |
-          curl -L \
-            -D headers.txt \
-            -o clones.json \
-            -H "Authorization: Bearer $GH_TOKEN" \
+          # Fetch Clones
+          curl -L -H "Authorization: Bearer $GH_TOKEN" \
             -H "Accept: application/vnd.github+json" \
             -H "X-GitHub-Api-Version: 2022-11-28" \
+            -o clones.json \
             https://api.github.com/repos/$OBSERVED_REPO/traffic/clones
 
-          CLONES=$(jq -r '.count // 0' clones.json)
-          UNIQUES=$(jq -r '.uniques // 0' clones.json)
+          # Fetch Views
+          curl -L -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            -o views.json \
+            https://api.github.com/repos/$OBSERVED_REPO/traffic/views
+            
 
-          echo "CLONES=$CLONES" >> $GITHUB_ENV
-          echo "UNIQUES=$UNIQUES" >> $GITHUB_ENV
-
-      - name: Debug auth identity
-        env:
-          GH_TOKEN: ${{ secrets.METRICS_PAT }}
-        run: |
-          curl -s \
-            -H "Authorization: Bearer $GH_TOKEN" \
-            https://api.github.com/user | jq '{login, id}'
-
-      - name: Debug repo access
-        env:
-          GH_TOKEN: ${{ secrets.METRICS_PAT }}
-          OBSERVED_REPO: ${{ inputs.observed-repo }}
-        run: |
-          curl -s \
-            -H "Authorization: Bearer $GH_TOKEN" \
-            https://api.github.com/repos/$OBSERVED_REPO | jq '{full_name, private}'
-
-      - name: Debug clone API
-        run: |
-          echo "===== clones.json ====="
-          cat clones.json
-          echo "======================"
-
-      
       - name: Append and Deduplicate metrics CSV
         run: |
           set -e
@@ -79,51 +56,49 @@ jobs:
           git config user.name "metrics-bot"
           git config user.email "metrics-bot@users.noreply.github.com"
 
-          # 2. Setup File
+          # 2. Setup File with new header: date,repository,type,count,uniques
           FILE="data/$(echo '${{ github.repository }}' | tr '/' '__').csv"
+          HEADER="date,repository,type,count,uniques"
           mkdir -p data
+          
           if [ ! -f "$FILE" ]; then
-            echo "date,repository,clones,uniques" > "$FILE"
+            echo "$HEADER" > "$FILE"
           fi
 
           REPO="${{ github.repository }}"
 
-          # 3. GET THE LATEST DATE FROM JSON
-          # This looks at the last entry in the clones array and grabs the first 10 chars (YYYY-MM-DD)
-          # Note: the last recorded date is not necessarily today's date
-          LATEST_JSON_DATE=$(jq -r '.clones[-1].timestamp[0:10]' ../clones.json)
+          # 3. Process Clones (Daily and Summary)
+          LATEST_CLONE_DATE=$(jq -r '.clones[-1].timestamp[0:10] // empty' ../clones.json)
+          [ -z "$LATEST_CLONE_DATE" ] && LATEST_CLONE_DATE=$(date +%F)
 
-          # If for some reason the JSON is empty, fallback to system date to avoid errors
-          if [ "$LATEST_JSON_DATE" == "null" ] || [ -z "$LATEST_JSON_DATE" ]; then
-            LATEST_JSON_DATE=$(date +%F)
-          fi
+          # Daily Clones
+          jq -r --arg REPO "$REPO" '.clones[] | [.timestamp[0:10], $REPO, "clones", .count, .uniques] | @csv' ../clones.json >> "$FILE"
+          # Summary Clones
+          jq -r --arg REPO "$REPO" --arg DATE "$LATEST_CLONE_DATE" \
+            '[ "\($DATE)~ 14-day total", $REPO, "clones_total", .count, .uniques ] | @csv' ../clones.json >> "$FILE"
 
-          # 4. APPEND ALL DATA (Raw)
-          # Get daily stats from clones.json and append to $FILE
-          jq -r --arg REPO "$REPO" '.clones[] | [.timestamp[0:10], $REPO, .count, .uniques] | @csv' ../clones.json >> "$FILE"   
-          # Append the summary using the LATEST_JSON_DATE and the Tilde (~) for sorting
-          jq -r --arg REPO "$REPO" --arg DATE "$LATEST_JSON_DATE" \
-            '[ "\($DATE)~ 14-day total", $REPO, .count, .uniques ] | @csv' ../clones.json >> "$FILE"
+          # 4. Process Views (Daily and Summary)
+          LATEST_VIEW_DATE=$(jq -r '.views[-1].timestamp[0:10] // empty' ../views.json)
+          [ -z "$LATEST_VIEW_DATE" ] && LATEST_VIEW_DATE=$(date +%F)
+
+          # Daily Views
+          jq -r --arg REPO "$REPO" '.views[] | [.timestamp[0:10], $REPO, "views", .count, .uniques] | @csv' ../views.json >> "$FILE"
+          # Summary Views
+          jq -r --arg REPO "$REPO" --arg DATE "$LATEST_VIEW_DATE" \
+            '[ "\($DATE)~ 14-day total", $REPO, "views_total", .count, .uniques ] | @csv' ../views.json >> "$FILE"
+
+          # 5. DEDUPLICATE AND SORT
+          # Ensure header is correct (migrates old 4-column files to 5-column if necessary)
+          echo "$HEADER" > "$FILE.tmp"
           
-          # 5. DEDUPLICATE AND SORT DESCENDING (The "Magic" Step) 
-          # Check if the first line is actually the header. If not, we add it.
-          if ! head -n 1 "$FILE" | grep -q "^date,"; then
-              # No header found? Prepend it to the file.
-              SED_HEADER="date,repository,clones,uniques"
-              sed -i "1i $SED_HEADER" "$FILE"
-          fi
-          
-          # Save the header to the tmp file first
-          head -n 1 "$FILE" > "$FILE.tmp"
-          # take everything EXCEPT the header (tail -n +2), deduplicate with awk, and sort desc
-          # -F, : Use comma as separator
-          tail -n +2 "$FILE" | awk -F, '{a[$1,$2]=$0} END {for (i in a) print a[i]}' | sort -t, -k1,1r >> "$FILE.tmp"
+          # The AWK Key is now $1 (date), $2 (repo), and $3 (type). 
+          # This allows a 'clones' and 'views' entry for the same day.
+          tail -n +2 "$FILE" | awk -F, '$3!="" {a[$1,$2,$3]=$0} END {for (i in a) print a[i]}' | sort -t, -k1,1r >> "$FILE.tmp"
           
           mv "$FILE.tmp" "$FILE"
 
           # 6. Commit and Push
           git add "$FILE"
-          git commit -m "metrics: record and deduplicate stats for $REPO" || true
-          git push
-    
- 
+          git commit -m "metrics: record clones and views for $REPO" || true
+          git push    
+          
