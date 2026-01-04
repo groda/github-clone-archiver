@@ -1,4 +1,4 @@
-name: 'GitHub Clone Archiver'
+name: 'GitHub Traffic Archiver'
 description: 'Automatically archive and persist your GitHub traffic and clone metrics beyond the 14-day limit.'
 author: 'YOUR-USERNAME'
 branding:
