@@ -1,5 +1,5 @@
 name: 'GitHub Traffic Archiver'
-description: 'Fetch and archive traffic stats'
+description: 'Stop losing your GitHub traffic data! Automatically archives clones and views into a private long-term CSV database.'
 author: 'groda'
 branding:
   icon: 'database' 
