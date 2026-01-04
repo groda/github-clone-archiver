@@ -1,6 +1,6 @@
 # Metrics Workflow 📊
 
-This is a reusable GitHub Actions workflow designed to automate the collection and archival of repository clone statistics. It solves the "14-day limit" problem of GitHub's native traffic insights by persisting data into a central repository.
+This is a reusable GitHub Actions workflow designed to automate the collection and archival of repository clone and view statistics. It solves the "14-day limit" problem of GitHub's native traffic insights by persisting data into a central repository.
 
 ## 🏗 Architecture
 
@@ -16,7 +16,7 @@ The system uses a **three-repo architecture** to maintain security and organizat
 
 GitHub only keeps traffic data (clones and visitors) for **14 days**. This workflow acts as a "Data Logger":
 
-1. It wakes up every day and asks the GitHub API for the clone history of the **Observed Repo**.
+1. It wakes up every day and asks the GitHub API for the clone and view history of the **Observed Repo**.
 2. It compares this data with the existing logs in your **Observer Repo**.
 3. It appends only the most recent data and updates the "14-day total" summary.
 4. It deduplicates the file and sorts it so the most recent stats are always at the top.
@@ -81,7 +81,7 @@ jobs:
       contents: read
 
     # You can point this to your own forked workflows repo if preferred
-    uses: groda/github-clone-archiver/.github/workflows/metrics.yml@v1.1.1
+    uses: groda/github-traffic-archiver/.github/workflows/metrics.yml@v2
     
     with:
       metrics-repo: YOUR-USERNAME/observer-repo
@@ -120,8 +120,10 @@ Each CSV is optimized for easy sorting and long-term analysis:
 | Column | Description | Example |
 | --- | --- | --- |
 | **Date** | The date the data was captured (YYYY-MM-DD) | `2024-05-20` |
-| **Clones** | Total number of times the repo was cloned that day | `42` |
-| **Unique** | Number of unique GitHub accounts that cloned | `12` |
+| **Repository** | The name of the observed repository | `groda/color-combinations` |
+| **Type** | Type of metric ("view" or "clone") | `view` |
+| **Count** | Total number of times the repo was cloned that day | `42` |
+| **Uniques** | Number of unique GitHub accounts that cloned | `12` |
 
 > **Note:** The workflow uses a "smart merge" logic. It checks the existing CSV in your Observer repo first, appends only the newest data, and ensures no duplicate dates are recorded.
 
