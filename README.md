@@ -1,5 +1,9 @@
 # Metrics Workflow 📊
 
+![Main Workflow Status](https://img.shields.io/github/actions/workflow/status/groda/github-traffic-archiver/run-archiver.yml?branch=main&label=last%20backup&style=flat-square)
+![Version](https://img.shields.io/github/v/release/groda/github-traffic-archiver?include_prereleases&label=version&sort=semver&style=flat-square&color=blue)
+![License](https://img.shields.io/github/license/groda/github-traffic-archiver?style=flat-square&color=orange)
+
 This is a GitHub Action designed to automate the collection and archival of repository traffic statistics (clones and views). It solves the "14-day limit" problem of GitHub's native traffic insights by persisting daily metrics into a central storage repository, creating a permanent historical record.
 
 ---
