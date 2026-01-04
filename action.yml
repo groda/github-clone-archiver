@@ -14,7 +14,7 @@ inputs:
     description: "Target repo for storing metrics (OWNER/REPO)"
     required: true
   metrics-pat:
-    description: "Personal Access Token (PAT) with "Contents: Write" permissions"
+    description: "Personal Access Token (PAT) with Contents Write permissions"
     required: true
 
 
