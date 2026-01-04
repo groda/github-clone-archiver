@@ -1,14 +1,32 @@
 # Metrics Workflow 📊
 
-This is a reusable GitHub Actions workflow designed to automate the collection and archival of repository clone and view statistics. It solves the "14-day limit" problem of GitHub's native traffic insights by persisting data into a central repository.
+This is a GitHub Action designed to automate the collection and archival of repository traffic statistics (clones and views). It solves the "14-day limit" problem of GitHub's native traffic insights by persisting daily metrics into a central storage repository, creating a permanent historical record.
+
+---
 
 ## 🏗 Architecture
 
-The system uses a **three-repo architecture** to maintain security and organization:
+The system follows a streamlined **Action-based architecture** to maintain security and organization:
 
-1. **Workflows Repo (`metrics-workflows`)**: Central hub containing the reusable logic (`metrics.yml`).
-2. **Observed Repo(s)**: The repositories being tracked. Each triggers the workflow on a schedule.
-3. **Observer Repo (`metrics-database`)**: The central storage where `.csv` files are maintained and updated.
+1. **The Action (`traffic-archiver-action`)**: This repository contains the `action.yml` logic. It is the engine that fetches data and processes the CSVs.
+2. **Observed Repo(s)**: The repositories you want to track. Each one runs a simple daily workflow that calls the Action.
+3. **Metrics Vault (`metrics-database`)**: The central storage repository where `.csv` files are maintained and updated.
+
+### 🔒 Recommended "Metrics Vault" Setup
+
+For maximum security and clarity, your storage repository should be configured as follows:
+
+* **Visibility: Private** 🔒
+Your traffic statistics, clones, and unique viewer counts are sensitive business intelligence. Keeping this repo private ensures your analytics aren't publicly exposed.
+* **Purpose**: A dedicated central "database" for your `.csv` files.
+* **Why a Separate Repo?**:
+* **Clean History:** Prevents your source code repos from being cluttered with daily automated "metrics" commits.
+* **Centralized Analytics:** You can track 50 different projects and have them all report to this single repo, making it easy to run one dashboard for your entire portfolio.
+* **Persistent Data:** Even if you delete or rename a source repository, your historical data remains safe in the vault.
+
+### 🔑 Security Note: The `METRICS_PAT`
+
+Because the **Metrics Vault** is private, the Action requires a Personal Access Token (PAT) with `repo` scope. This token allows the Action to securely "tunnel" the data from your public repositories into your private vault.
 
 ---
 
@@ -23,6 +41,7 @@ GitHub only keeps traffic data (clones and visitors) for **14 days**. This workf
 
 > [!IMPORTANT]
 > **Access Requirement:** Access Requirement: You must have owner or collaborator permissions on **both** the Observed and Observer repositories. This workflow uses a Personal Access Token (PAT) to **read** private traffic data from the source and **write** the archived logs to this repository.
+
 ---
 
 ## 🔐 Security & Permissions
@@ -64,7 +83,7 @@ In **each** Observed Repo (Settings > Secrets and variables > Actions), add the 
 > The auto-generated "Installation" snippet on the Marketplace sidebar is incomplete. 
 > To archive data, you **must** include the permissions and token blocks below.
 
-Create a file `.github/workflows/metrics.yml` in an **Observed Repo**:
+Create a file `.github/workflows/run-archiver.yml` in an **Observed Repo**:
 
 ```yaml
 name: Collect Metrics
@@ -74,20 +93,22 @@ on:
     - cron: '0 0 * * *' # Runs daily at midnight
   workflow_dispatch:    # Allows manual triggering
 
+permissions:
+  contents: read
+
 jobs:
-    update-metrics:
-    # This is required for the runner to operate within the Observed repo
-    permissions:
-      contents: read
+  record-stats:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
 
-    # You can point this to your own forked workflows repo if preferred
-    uses: groda/github-traffic-archiver/.github/workflows/metrics.yml@v2
-    
-    with:
-      metrics-repo: YOUR-USERNAME/observer-repo
-    secrets:
-      METRICS_PAT: ${{ secrets.METRICS_PAT }}
-
+      - name: Run Traffic Archiver
+        uses: groda/github-traffic-archiver@v2
+        with:
+          metrics-repo: 'YOUR-USERNAME/observer-repo'
+          metrics-pat: ${{ secrets.METRICS_PAT }}
+          # observed-repo defaults to the current repo if omitted
 ```
 
 This is your caller workflow for the observed repository.

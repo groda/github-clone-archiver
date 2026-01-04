@@ -1,19 +1,107 @@
 name: 'GitHub Traffic Archiver'
-description: 'Automatically archive and persist your GitHub traffic and clone metrics beyond the 14-day limit.'
-author: 'YOUR-USERNAME'
+description: 'Fetch and archive traffic stats'
+author: 'groda'
 branding:
   icon: 'database' 
   color: 'green'
   
-# This displays the required PAT in the Marketplace UI
 inputs:
-  token:
-    description: 'Personal Access Token (PAT) with "Contents: Write" permissions'
+  observed-repo:
+    description: "Repository to fetch metrics from (OWNER/REPO)"
+    required: false
+    default: ${{ github.repository }}
+  metrics-repo:
+    description: "Target repo for storing metrics (OWNER/REPO)"
     required: true
+  metrics-pat:
+    description: "Personal Access Token (PAT) with "Contents: Write" permissions"
+    required: true
+
+
     
 # This section is required for Marketplace listing
 runs:
-  using: 'composite'
+  using: "composite"
   steps:
-    - run: echo "This is a reusable workflow. Please refer to the README for caller setup."
+    - name: Install jq
       shell: bash
+      run: sudo apt-get update && sudo apt-get install -y jq
+
+    - name: Fetch Traffic Stats (Clones and Views)
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.metrics-pat }}
+        OBSERVED_REPO: ${{ inputs.observed-repo }}
+      run: |
+        # Fetch Clones
+        curl -L -H "Authorization: Bearer $GH_TOKEN" \
+          -H "Accept: application/vnd.github+json" \
+          -H "X-GitHub-Api-Version: 2022-11-28" \
+          -o clones.json \
+          https://api.github.com/repos/$OBSERVED_REPO/traffic/clones
+
+        # Fetch Views
+        curl -L -H "Authorization: Bearer $GH_TOKEN" \
+          -H "Accept: application/vnd.github+json" \
+          -H "X-GitHub-Api-Version: 2022-11-28" \
+          -o views.json \
+          https://api.github.com/repos/$OBSERVED_REPO/traffic/views
+
+    - name: Append and Deduplicate metrics CSV
+      shell: bash
+      run: |
+        set -e
+
+        # 1. Setup Repo
+        git clone https://x-access-token:${{ inputs.metrics-pat }}@github.com/${{ inputs.metrics-repo }}.git metrics-temp
+        cd metrics-temp
+        git config user.name "metrics-bot"
+        git config user.email "metrics-bot@users.noreply.github.com"
+
+        # 2. Setup File Logic
+        # We use the observed-repo input to define the filename
+        FILE="data/$(echo '${{ inputs.observed-repo }}' | tr '/' '__').csv"
+        HEADER="date,repository,type,count,uniques"
+        mkdir -p data
+        
+        # Check for existence and Migration (4 cols to 5)
+        if [ -f "$FILE" ]; then
+          COL_COUNT=$(head -n 1 "$FILE" | grep -o "," | wc -l)
+          if [ "$COL_COUNT" -eq 3 ]; then
+            echo "Migrating old 4-column CSV..."
+            echo "$HEADER" > "$FILE.migrated"
+            tail -n +2 "$FILE" | awk -F, '{print $1","$2",clones,"$3","$4}' >> "$FILE.migrated"
+            mv "$FILE.migrated" "$FILE"
+          fi
+        else
+          echo "$HEADER" > "$FILE"
+        fi
+
+        REPO="${{ inputs.observed-repo }}"
+
+        # 3. Process Clones
+        LATEST_CLONE_DATE=$(jq -r '.clones[-1].timestamp[0:10] // empty' ../clones.json)
+        [ -z "$LATEST_CLONE_DATE" ] && LATEST_CLONE_DATE=$(date +%F)
+        jq -r --arg REPO "$REPO" '.clones[] | [.timestamp[0:10], $REPO, "clones", .count, .uniques] | @csv' ../clones.json >> "$FILE"
+        jq -r --arg REPO "$REPO" --arg DATE "$LATEST_CLONE_DATE" \
+          '[ "\($DATE)~ 14-day total", $REPO, "clones_total", .count, .uniques ] | @csv' ../clones.json >> "$FILE"
+
+        # 4. Process Views
+        LATEST_VIEW_DATE=$(jq -r '.views[-1].timestamp[0:10] // empty' ../views.json)
+        [ -z "$LATEST_VIEW_DATE" ] && LATEST_VIEW_DATE=$(date +%F)
+        jq -r --arg REPO "$REPO" '.views[] | [.timestamp[0:10], $REPO, "views", .count, .uniques] | @csv' ../views.json >> "$FILE"
+        jq -r --arg REPO "$REPO" --arg DATE "$LATEST_VIEW_DATE" \
+          '[ "\($DATE)~ 14-day total", $REPO, "views_total", .count, .uniques ] | @csv' ../views.json >> "$FILE"
+
+        # 5. DEDUPLICATE AND SORT
+        echo "$HEADER" > "$FILE.tmp"
+        tail -n +2 "$FILE" | awk -F, '$3!="" {a[$1,$2,$3]=$0} END {for (i in a) print a[i]}' | sort -t, -k1,1r >> "$FILE.tmp"
+        mv "$FILE.tmp" "$FILE"
+
+        # 6. Commit and Push
+        git add "$FILE"
+        git commit -m "metrics: record clones and views for $REPO" || true
+        git push
+
+
+
