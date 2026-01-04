@@ -1,4 +1,4 @@
-name: Record clone metrics
+name: Record clone and view metrics
 
 on:
   workflow_dispatch:
@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   metrics:
-    uses: groda/github-clone-archiver/.github/workflows/metrics.yml@v1.1.1
+    uses: groda/github-traffic-archiver/.github/workflows/metrics.yml@v2
     with:
       metrics-repo: groda/observatory
     secrets:
