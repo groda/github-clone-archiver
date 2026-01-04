@@ -17,6 +17,6 @@ jobs:
       - name: Run Traffic Archiver
         uses: groda/github-traffic-archiver@v2
         with:
-          metrics-repo: 'your-username/my-private-storage-repo'
+          metrics-repo: 'groda/observatory'
           metrics-pat: ${{ secrets.METRICS_PAT }}
           # observed-repo defaults to the current repo if omitted
