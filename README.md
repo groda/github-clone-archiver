@@ -8,6 +8,88 @@ This is a GitHub Action designed to automate the collection and archival of repo
 
 ---
 
+## Beyond the 14-Day Limit
+
+GitHub only keeps your traffic data for 14 days. This action ensures you never lose a single view or clone by archiving them into a permanent vault.
+
+```mermaid
+graph LR
+    %% 1. Define the Nodes
+    A[Observed Repo A]
+    B[Observed Repo B]
+    C[Observed Repo C]
+    D[(Observer Vault)]
+    E[Infinite History]
+
+    %% 2. Define the Connections
+    A -->|Daily Sync| D
+    B -->|Daily Sync| D
+    C -->|Daily Sync| D
+    D --> E
+
+    %% 3. Apply Styles
+    style D fill:#238636,stroke:#308d46,color:#fff,stroke-width:2px
+    style A fill:#f6f8fa,stroke:#d0d7de,color:#000
+    style B fill:#f6f8fa,stroke:#d0d7de,color:#000
+    style C fill:#f6f8fa,stroke:#d0d7de,color:#000
+    style E fill:#f6f8fa,stroke:#d0d7de,color:#000,stroke-dasharray: 5 5
+```
+
+---
+
+### Why use this?
+
+| Feature | The Observer Advantage |
+| --- | --- |
+| **Speed** | **60-Second Setup.** No complex Docker or Python environments; just a pure Composite Action. |
+| **Privacy** | **Total Ownership.** Your metrics never leave GitHub. They move from one private repo to another. |
+| **Portability** | **Clean CSVs.** No proprietary formats. Just raw data ready for Excel, Sheets, or Python. |
+| **Centralization** | **Multi-Repo Support.** One "Observer" repo can track an unlimited number of "Observed" repos. |
+| **Automation** | **Set & Forget.** Runs on a cron schedule so your history grows while you sleep. |
+
+---
+
+## 🚀 Quick Start (60 Seconds)
+
+Stop losing your data in three easy steps:
+
+### 1. Create a Storage Repo
+
+Create a **private** repository (e.g., `my-observer-repo`) to act as your database.
+
+### 2. Generate a Token
+
+Create a [Fine-grained Personal Access Token](https://github.com/settings/tokens?type=beta) with **Read & Write** access to:
+ - your new _observer_ repo
+ - all repos you want to collect metrics for (the _observed_ projects).
+ 
+ Add it as an actions Secret named `METRICS_PAT` in your observer and observed repositories.
+
+### 3. Add the Workflow
+
+Create `.github/workflows/metrics.yml` each the _observed_ project (the project you want to collect metrics for) and paste this:
+
+```yaml
+name: Archive Traffic
+on:
+  schedule:
+    - cron: '0 0 * * *' 
+  workflow_dispatch:
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: groda/github-traffic-archiver@v2
+        with:
+          metrics-repo: 'YOUR-USERNAME/my-observer-repo'
+          metrics-pat: ${{ secrets.METRICS_PAT }}
+```
+> [!IMPORTANT] 
+> The `METRICS_PAT` must be a Personal Access Token with **'Repository Contents: Write'** access for both the repository you are monitoring and the repository where you are storing the data.
+
+---
+
 ## 🏗 Architecture
 
 The system follows a streamlined **Action-based architecture** to maintain security and organization:
