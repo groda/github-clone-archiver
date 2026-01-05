@@ -1,4 +1,4 @@
-# Metrics Workflow 📊
+# GitHub Traffic Archiver 📊
 
 ![Main Workflow Status](https://img.shields.io/github/actions/workflow/status/groda/github-traffic-archiver/run-archiver.yml?branch=main&label=last%20backup&style=flat-square)
 ![Version](https://img.shields.io/github/v/release/groda/github-traffic-archiver?include_prereleases&label=version&sort=semver&style=flat-square&color=blue)
