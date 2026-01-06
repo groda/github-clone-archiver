@@ -53,9 +53,12 @@ graph LR
 
 Stop losing your data in three easy steps:
 
-### 1. Create a Storage Repo
+### 1. Launch your Observatory
 
-Create a **private** repository (e.g., `my-observer-repo`) to act as your database.
+Click [**Use this template**](https://github.com/groda/observatory-dashboard/generate) to create an _observer_ repository to act as your database. 
+
+> [!IMPORTANT]
+> Make sure to set the repository to **Private** during setup to keep your traffic data secure.
 
 ### 2. Generate a Token
 
@@ -87,6 +90,16 @@ jobs:
 ```
 > [!IMPORTANT] 
 > The `METRICS_PAT` must be a Personal Access Token with **'Repository Contents: Write'** access for both the repository you are monitoring and the repository where you are storing the data.
+
+---
+
+## 📊 Visualize Your Data
+Don't just collect data—see it! 
+
+Use the [**Observatory Dashboard Template**](https://github.com/YOUR_USERNAME/observatory-dashboard) to instantly generate interactive, dark-mode charts from the data collected by this Action.
+
+[![Dashboard Preview](./dashboard_preview.png)](https://github.com/YOUR_USERNAME/observatory-dashboard)
+*Click to view the Template Repository*
 
 ---
 
