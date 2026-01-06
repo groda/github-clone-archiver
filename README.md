@@ -85,7 +85,7 @@ jobs:
     steps:
       - uses: groda/github-traffic-archiver@v2
         with:
-          metrics-repo: 'YOUR-USERNAME/my-observer-repo'
+          metrics-repo: 'YOUR-USERNAME/observatory-dashboard'
           metrics-pat: ${{ secrets.METRICS_PAT }}
 ```
 > [!IMPORTANT] 
