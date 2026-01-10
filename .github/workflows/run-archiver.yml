@@ -3,7 +3,7 @@ name: Record clone and view metrics
 on:
   workflow_dispatch:
   schedule:
-    - cron: "0 6 * * *"   # once per day, quiet time
+    - cron: "30 23 * * *"   # once per day, quiet time
 
 permissions:
   contents: read
